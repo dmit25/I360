@@ -4,7 +4,7 @@
     {
         public Data.Equation Canonize(Data.Equation equation)
         {
-            var res = new Data.Equation();
+            var res = new Data.Equation(); 
             return res;
         }
     }

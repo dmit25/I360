@@ -21,6 +21,10 @@ namespace News360.Equation.Rendering
         public void Render(StringBuilder container, List<Member> leftPart)
         {
             Member prev = null;
+            if (leftPart.Count == 0)
+            {
+                container.Append("0");
+            }
             foreach (var member in leftPart)
             {
                 Render(container, member, prev);

@@ -10,101 +10,95 @@ namespace News360.Equation.Parsing
     {
         public Data.Equation Parse(string input)
         {
-            var pos = 0;
-            var state = ParseState.Factor;
             if (string.IsNullOrEmpty(input))
             {
-                throw new ParsingException(input, pos, state, "input is null or empty");
+                throw new ParsingException(input, 0, ParseState.Factor, "input is null or empty");
             }
+            var ctx = new Context();
             try
             {
                 var res = new Data.Equation();
-                var context = new Stack<IList<Member>>();
-                context.Push(res.LeftPart);
-                var buffer = new StringBuilder();
-                var current = new Member(0);
-                Variable currentVar = null;
-                for (pos = 0; pos < input.Length; pos++)
+                ctx.Stack.Push(res.LeftPart);
+                for (; ctx.Pos < input.Length; ctx.Pos++)
                 {
-                    var c = input[pos];
+                    var c = input[ctx.Pos];
                     switch (c)
                     {
                         case ' ':
                             continue;
                         case '=':
-                            if (context.Count > 1)
+                            if (ctx.Stack.Count > 1)
                             {
                                 throw new ApplicationException("Unclosed brackets");
                             }
-                            current = AddDanglingMember(current, buffer, context, out currentVar);
-                            context.Pop();
-                            context.Push(res.RightPart);
-                            state = ParseState.Factor;
+                            AppendDanglingMember(ctx);
+                            ctx.Stack.Pop();
+                            ctx.Stack.Push(res.RightPart);
+                            ctx.State = ParseState.Factor;
                             break;
                         case '(':
-                            switch (state)
+                            switch (ctx.State)
                             {
                                 case ParseState.Factor:
-                                    SetFactorFromBuffer(current, buffer);
-                                    current = PushBrackets(current, context, out currentVar, out state);
+                                    SetFactorFromBuffer(ctx);
+                                    PushBrackets(ctx);
                                     break;
                                 case ParseState.Power:
-                                    SetPowerFromBuffer(currentVar, buffer);
-                                    current = PushBrackets(current, context, out currentVar, out state);
+                                    SetPowerFromBuffer(ctx);
+                                    PushBrackets(ctx);
                                     break;
                                 case ParseState.Variable:
-                                    current = PushBrackets(current, context, out currentVar, out state);
+                                    PushBrackets(ctx);
                                     break;
                                 default:
                                     return Unexpected(c);
                             }
                             break;
                         case ')':
-                            switch (state)
+                            if (ctx.Stack.Count < 2)
                             {
-                                case ParseState.Power:
-                                case ParseState.Factor:
-                                    current = AddDanglingMember(current, buffer, context, out currentVar);
-                                    context.Pop();
-                                    break;
-                                case ParseState.Variable:
-                                    if (context.Count < 2)
-                                    {
-                                        throw new ApplicationException("Redundant close bracket");
-                                    }
-                                    current = NewMember(context, current, out currentVar);
-                                    context.Pop();
-                                    state = ParseState.Factor;
-                                    break;
-                                default:
-                                    return Unexpected(c);
+                                throw new ApplicationException("Redundant close bracket");
                             }
+                            AppendDanglingMember(ctx);
+                            ctx.Stack.Pop();
+                            ctx.State = ParseState.Factor;
                             break;
                         case '+':
                         case '-':
-                            switch (state)
+                            switch (ctx.State)
                             {
                                 case ParseState.Factor:
-                                    buffer.Append(c);
+                                    ctx.Buffer.Append(c);
                                     break;
                                 case ParseState.Variable:
-                                    current = NewMember(context, current, out currentVar);
-                                    buffer.Append(c);
-                                    state = ParseState.Factor;
+                                    StartNewMember(ctx);
+                                    ctx.Buffer.Append(c);
+                                    ctx.State = ParseState.Factor;
                                     break;
                                 case ParseState.Power:
-                                    SetPowerFromBuffer(currentVar, buffer);
-                                    current = NewMember(context, current, out currentVar);
-                                    state = ParseState.Factor;
+                                    //handling negative power
+                                    if (ctx.Buffer.Length == 1
+                                        && c == '-'
+                                        && ctx.Buffer[0] == '^')
+                                    {
+                                        ctx.Buffer.Append(c);
+                                    }
+                                    else
+                                    {
+                                        SetPowerFromBuffer(ctx);
+                                        StartNewMember(ctx);
+                                        ctx.Buffer.Append(c);
+                                        ctx.State = ParseState.Factor;
+                                    }
                                     break;
                                 default:
                                     return Unexpected(c);
                             }
                             break;
                         case '.':
-                            if (state == ParseState.Factor)
+                            if (ctx.State == ParseState.Factor)
                             {
-                                buffer.Append(c);
+                                ctx.Buffer.Append(c);
                             }
                             else
                             {
@@ -112,10 +106,11 @@ namespace News360.Equation.Parsing
                             }
                             break;
                         case '^':
-                            switch (state)
+                            switch (ctx.State)
                             {
                                 case ParseState.Variable:
-                                    state = ParseState.Power;
+                                    ctx.Buffer.Append(c);
+                                    ctx.State = ParseState.Power;
                                     break;
                                 default:
                                     return Unexpected(c);
@@ -124,11 +119,11 @@ namespace News360.Equation.Parsing
                         default:
                             if (c >= '0' && c <= '9')
                             {
-                                switch (state)
+                                switch (ctx.State)
                                 {
                                     case ParseState.Factor:
                                     case ParseState.Power:
-                                        buffer.Append(c);
+                                        ctx.Buffer.Append(c);
                                         break;
                                     case ParseState.Variable:
 
@@ -139,17 +134,20 @@ namespace News360.Equation.Parsing
                             }
                             else if (c >= 'a' && c <= 'z')
                             {
-                                switch (state)
+                                switch (ctx.State)
                                 {
                                     case ParseState.Factor:
-                                        SetFactorFromBuffer(current, buffer);
-                                        currentVar = current.AddVariable(c.ToString());
-                                        state = ParseState.Variable;
+                                        SetFactorFromBuffer(ctx);
+                                        ctx.Var = ctx.Current.AddVariable(c.ToString());
+                                        ctx.State = ParseState.Variable;
                                         break;
                                     case ParseState.Variable:
-                                        currentVar = current.AddVariable(c.ToString());
+                                        ctx.Var = ctx.Current.AddVariable(c.ToString());
                                         break;
                                     case ParseState.Power:
+                                        SetPowerFromBuffer(ctx);
+                                        ctx.Var = ctx.Current.AddVariable(c.ToString());
+                                        ctx.State = ParseState.Variable;
                                         break;
                                     default:
                                         return Unexpected(c);
@@ -162,87 +160,125 @@ namespace News360.Equation.Parsing
                             break;
                     }
                 }
-                SetFactorFromBuffer(current, buffer, true);
-                if (!IsEmpty(current))
-                {
-                    context.Peek().Add(current);
-                }
+                AppendDanglingMember(ctx);
                 return res;
             }
             catch (ApplicationException exc)
             {
-                throw new ParsingException(input, pos, state, exc.Message, exc);
+                throw new ParsingException(input, ctx.Pos, ctx.State, exc.Message, exc);
             }
         }
 
-        private Member AddDanglingMember(Member current, StringBuilder buffer, Stack<IList<Member>> context, out Variable currentVar)
+        private void AppendDanglingMember(Context ctx)
         {
-            SetFactorFromBuffer(current, buffer, true);
-            if (!IsEmpty(current))
+            if (ctx.State == ParseState.Power)
             {
-                current = NewMember(context, current, out currentVar);
+                SetPowerFromBuffer(ctx);
+            }
+            else if (ctx.State == ParseState.Factor)
+            {
+                SetFactorFromBuffer(ctx, true);
+            }
+            if (!CurrentIsEmpty(ctx))
+            {
+                StartNewMember(ctx);
             }
             else
             {
-                currentVar = null;
+                ctx.Var = null;
             }
-            return current;
         }
 
-        private bool IsEmpty(Member current)
+        private bool CurrentIsEmpty(Context ctx)
         {
-            return Math.Abs(current.Factor) < double.Epsilon && current.Vars.Count == 0;
+            return Math.Abs(ctx.Current.Factor) < double.Epsilon && ctx.Current.Vars.Count == 0;
         }
 
-        private void SetPowerFromBuffer(Variable current, StringBuilder buffer)
+        private void SetPowerFromBuffer(Context ctx)
         {
-            if (buffer.Length == 0)
+            if (ctx.Buffer.Length == 0)
             {
                 throw new ApplicationException("Empty power value");
             }
-            if (current == null)
+            if (ctx.Current == null)
             {
                 throw new ApplicationException("Undefined behaviour");
             }
-            current.Power = int.Parse(buffer.ToString());
-            buffer.Clear();
+            var power = int.Parse(
+                ctx.Buffer[0] == '^'
+                ? ctx.Buffer.ToString(1, ctx.Buffer.Length - 1)
+                : ctx.Buffer.ToString());
+            ctx.Var.Power = ctx.Var.Power == 1
+                ? power
+                : ctx.Var.Power + power - 1;
+            ctx.Buffer.Clear();
         }
 
-        private static Member PushBrackets(Member current, Stack<IList<Member>> context, out Variable currentVar, out ParseState state)
+        private static void PushBrackets(Context ctx)
         {
-            var br = new Brackets(current);
-            context.Peek().Add(br);
-            context.Push(br.Content);
-            current = new Member(0);
-            currentVar = null;
-            state = ParseState.Factor;
-            return current;
+            var br = new Brackets(ctx.Current);
+            ctx.Stack.Peek().Add(br);
+            ctx.Stack.Push(br.Content);
+            ctx.Current = new Member(0);
+            ctx.Var = null;
+            ctx.State = ParseState.Factor;
         }
 
-        private static void SetFactorFromBuffer(Member current, StringBuilder buffer, bool ignoreEmptyBuffer = false)
+        private static void SetFactorFromBuffer(Context ctx, bool ignoreEmptyBuffer = false)
         {
-            if (buffer.Length > 0)
+            if (ctx.Buffer.Length > 0)
             {
-                current.Factor = buffer.Length == 1 && (buffer[0] == '-' || buffer[0] == '+')
-                    ? (buffer[0] == '-' ? -1 : +1)
-                    : double.Parse(buffer.ToString(), CultureInfo.InvariantCulture);
-                buffer.Clear();
+                ctx.Current.Factor = ctx.Buffer.Length == 1
+                    && (ctx.Buffer[0] == '-'
+                    || ctx.Buffer[0] == '+')
+                    ? (ctx.Buffer[0] == '-' ? -1 : +1)
+                    : double.Parse(ctx.Buffer.ToString(), CultureInfo.InvariantCulture);
+                ctx.Buffer.Clear();
             }
-            else if (!ignoreEmptyBuffer && current != null && Math.Abs(current.Factor) < double.Epsilon)
+            else if (!ignoreEmptyBuffer
+                && ctx.Current != null
+                && Math.Abs(ctx.Current.Factor) < double.Epsilon)
             {
-                current.Factor = 1;
+                ctx.Current.Factor = 1;
             }
         }
 
-        private static Member NewMember(Stack<IList<Member>> context, Member current, out Variable currentVar)
+        private static void StartNewMember(Context ctx)
         {
-            context.Peek().Add(current);
-            current = new Member(0);
-            currentVar = null;
-            return current;
+            ctx.Stack.Peek().Add(ctx.Current);
+            ctx.Current = new Member(0);
+            ctx.Var = null;
         }
 
         private static Data.Equation Unexpected(char c) { throw new ApplicationException($"Unexpected symbol '{c}'"); }
+
+        private class Context
+        {
+            /// <summary>
+            /// Parents stack
+            /// </summary>
+            public readonly Stack<IList<Member>> Stack = new Stack<IList<Member>>();
+            /// <summary>
+            /// Inner string buffer (parsing ints and doubles from it)
+            /// </summary>
+            public readonly StringBuilder Buffer = new StringBuilder();
+            /// <summary>
+            /// Current expression member
+            /// </summary>
+            public Member Current = new Member(0);
+            /// <summary>
+            /// Current member's variable
+            /// </summary>
+            public Variable Var = null;
+            /// <summary>
+            /// Current state;
+            /// </summary>
+            public ParseState State = ParseState.Factor;
+            /// <summary>
+            /// Current position
+            /// </summary>
+            public int Pos = 0;
+        }
     }
 
     public enum ParseState
