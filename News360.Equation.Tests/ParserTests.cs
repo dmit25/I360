@@ -96,6 +96,20 @@ namespace News360.Equation.Tests
                         M(1,"")
                         )
                 },
+                {"xxyyyy - 0 = -25 + 0",
+                    L(
+                        M(1,"x",2).V("y",4))
+                    .R(
+                        M(-25,""))
+                },
+                {"xxyyyy - 0.5 = -25 + 0.25",
+                    L(
+                        M(1,"x",2).V("y",4),
+                        M(-0.5,""))
+                    .R(
+                        M(-25,""),
+                        M(+0.25,""))
+                }
             };
         }
 
@@ -106,6 +120,25 @@ namespace News360.Equation.Tests
         {
             var res = _Parser.Parse(test.Key);
             AssertAreEqual(test.Value, res);
+        }
+
+        public static IEnumerable<string> IncorrectCases()
+        {
+            return new
+            []{
+                //incorrect naming (by design)
+                "x0^5 = yy^-1",
+                "x^5 = yy^--1",
+                //[= -] <=> [= -0]
+                //"x^5 = -", 
+                "x^y = -"
+            };
+        }
+
+        [Test, TestCaseSource(nameof(IncorrectCases))]
+        public void CantParseIncorrectEquations(string test)
+        {
+            Assert.That(() => { _Parser.Parse(test); }, Throws.Exception);
         }
     }
 }

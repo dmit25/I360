@@ -34,25 +34,25 @@ namespace News360.Equation.Tests
             Assert.That(actual.Count, Is.EqualTo(expected.Count), context);
             for (int index = 0; index < expected.Count; index++)
             {
-                AssertAreEqual(expected[index], actual[index]);
+                AssertAreEqual(expected[index], actual[index], context);
             }
         }
 
-        private void AssertAreEqual(Member expected, Member actual)
+        private void AssertAreEqual(Member expected, Member actual, string context)
         {
-            Assert.That(actual.Factor, Is.EqualTo(expected.Factor), $"Expected: {expected.Render()} Actual: {actual.Render()}");
-            Assert.That(actual.Vars.Count, Is.EqualTo(expected.Vars.Count), $"Expected: {expected.Render()} Actual: {actual.Render()}");
+            Assert.That(actual.Factor, Is.EqualTo(expected.Factor), context);
+            Assert.That(actual.Vars.Count, Is.EqualTo(expected.Vars.Count), context);
             foreach (var pair in expected.Vars)
             {
                 Assert.That(actual.Vars, Contains.Key(pair.Key));
-                AssertAreEqual(pair.Value, actual.Vars[pair.Key]);
+                AssertAreEqual(pair.Value, actual.Vars[pair.Key], context);
             }
         }
 
-        private void AssertAreEqual(Variable expected, Variable actual)
+        private void AssertAreEqual(Variable expected, Variable actual, string context)
         {
-            Assert.That(actual.Name, Is.EqualTo(expected.Name), $"Expected: {expected.Render()} Actual: {actual.Render()}");
-            Assert.That(actual.Power, Is.EqualTo(expected.Power), $"Expected: {expected.Render()} Actual: {actual.Render()}");
+            Assert.That(actual.Name, Is.EqualTo(expected.Name), context);
+            Assert.That(actual.Power, Is.EqualTo(expected.Power), context);
         }
     }
 }

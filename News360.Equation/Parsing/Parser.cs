@@ -68,6 +68,10 @@ namespace News360.Equation.Parsing
                             switch (ctx.State)
                             {
                                 case ParseState.Factor:
+                                    if (ctx.Buffer.Length > 0)
+                                    {
+                                        AppendDanglingMember(ctx);
+                                    }
                                     ctx.Buffer.Append(c);
                                     break;
                                 case ParseState.Variable:
@@ -124,9 +128,6 @@ namespace News360.Equation.Parsing
                                     case ParseState.Factor:
                                     case ParseState.Power:
                                         ctx.Buffer.Append(c);
-                                        break;
-                                    case ParseState.Variable:
-
                                         break;
                                     default:
                                         return Unexpected(c);
