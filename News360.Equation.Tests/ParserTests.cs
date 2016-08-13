@@ -1,64 +1,63 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using News360.Equation.Parsing;
 using NUnit.Framework;
 
 namespace News360.Equation.Tests
 {
-    public static class Ext
-    {
-        public static Variable V(this string name, double factor = 1.0, int power = 1)
-        {
-            return new Variable { Factor = factor, Name = name, Power = power };
-        }
-
-        public static Brackets B(this string name, double factor, params Member[] members)
-        {
-            return new Brackets
-            {
-                Name = name,
-                Factor = factor,
-                Content = members.ToList()
-            };
-        }
-
-        public static Equation L(params Member[] members)
-        {
-            return new Equation { LeftPart = members.ToList() };
-        }
-
-        public static Equation R(this Equation equation, params Member[] members)
-        {
-            equation.RightPart = members.ToList();
-            return equation;
-        }
-    }
-
     [TestFixture]
-    public class ParserTests
+    public class ParserTests : TestBase
     {
-        public IEnumerable<KeyValuePair<string, Equation>> Cases()
+        public IEnumerable<KeyValuePair<string, Data.Equation>> CorrectCases()
         {
-            return new Dictionary<string, Equation>
+            return new Dictionary<string, Data.Equation>
             {
                 { "x^2 + 3.5xy + y = y^2 - xy + y",
-                    Ext.L("x".V(1,2),"xy".V(3.5),"y".V())
-                    .R("y".V(1,2),"xy".V(-1),"y".V())
+                    L(
+                        M(1,"x",2),
+                        M(+3.5,"x").V("y"),
+                        M(+1,"y"))
+                    .R(
+                        M(1,"y",2),
+                        M(-1,"x").V("y"),
+                        M(+1,"y"))
                 },
 
                 { "x^2 + 3.5x(y + y) = y^2( - xy + y)",
-                    Ext.L("x".V(1,2),"x".B(3.5,"y".V(),"y".V()))
-                    .R("y".V(1,2),"xy".V(-1),"y".V())
+                    L(  M(1,"x",2),
+                        M(+3.5,"x").B(
+                            M(1,"y"),
+                            M(+1,"y")))
+                    .R( M(1,"y",2).B(
+                            M(-1,"x").V("y"),
+                            M(+1,"y")))
+                },
+
+                { "x^2 + 3.5x(yx + y) = -y^2( - xy + 3(x - y)) + 1",
+                    L(
+                        M(1,"x",2),
+                        M(3.5,"x").B(
+                            M(1,"y").V("x"),
+                            M(+1,"y")
+                        ))
+                    .R(
+                        M(-1,"y",2).B(
+                            M(-1,"x").V("y"),
+                            M(+3,"").B(
+                                M(1,"x"),
+                                M(-1,"y"))),
+                        M(1,"")
+                        )
                 },
             };
         }
 
-        [Test, TestCaseSource(nameof(Cases))]
-        public void NAME()
-        {
+        private static readonly Parser _Parser = new Parser();
 
+        [Test, TestCaseSource(nameof(CorrectCases))]
+        public void CanParseEquations(KeyValuePair<string, Data.Equation> test)
+        {
+            var res = _Parser.Parse(test.Key);
+            AssertAreEqual(test.Value, res);
         }
     }
 }
