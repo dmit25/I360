@@ -1,13 +1,14 @@
 ﻿using System.Collections.Generic;
-using News360.Equation.Parsing;
+using News360.Equation.Rendering;
 using NUnit.Framework;
+using NUnit.Framework.Internal;
 
 namespace News360.Equation.Tests
 {
     [TestFixture]
-    public class ParserTests : TestBase
+    public class RendererTests : TestBase
     {
-        public static IEnumerable<KeyValuePair<string, Data.Equation>> CorrectCases()
+        public static IEnumerable<KeyValuePair<string, Data.Equation>> Cases()
         {
             return new Dictionary<string, Data.Equation>
             {
@@ -22,7 +23,7 @@ namespace News360.Equation.Tests
                         M(+1,"y"))
                 },
 
-                { "x^2 + 3.5x(y + y) = y^2( - xy + y)",
+                { "x^2 + 3.5x(y + y) = y^2(-xy + y)",
                     L(  M(1,"x",2),
                         M(+3.5,"x").B(
                             M(1,"y"),
@@ -32,7 +33,7 @@ namespace News360.Equation.Tests
                             M(+1,"y")))
                 },
 
-                { "x^2 + 3.5x(yx + y) = -y^2( - xy + 3(x - y)) + 1",
+                { "x^2 + 3.5x(xy + y) = -y^2(-xy + 3(x - y)) + 1",
                     L(
                         M(1,"x",2),
                         M(3.5,"x").B(
@@ -51,13 +52,12 @@ namespace News360.Equation.Tests
             };
         }
 
-        private static readonly Parser _Parser = new Parser();
+        private static readonly Renderer _Renderer = new Renderer();
 
-        [Test, TestCaseSource(nameof(CorrectCases))]
-        public void CanParseEquations(KeyValuePair<string, Data.Equation> test)
+        [Test, TestCaseSource(nameof(Cases))]
+        public void CanRenderEquations(KeyValuePair<string, Data.Equation> test)
         {
-            var res = _Parser.Parse(test.Key);
-            AssertAreEqual(test.Value, res);
+            Assert.That(_Renderer.Render(test.Value), Is.EqualTo(test.Key));
         }
     }
 }

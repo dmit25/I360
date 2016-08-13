@@ -24,7 +24,7 @@ namespace News360.Equation.Tests
 
         public static Data.Equation R(this Data.Equation equation, params Member[] members)
         {
-            equation.RightPart = members.ToList();
+            equation.RightPart.AddRange(members);
             return equation;
         }
     }

@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace News360.Equation.Data
 {
+    [DebuggerDisplay("{Factor}[{Vars.Count}]")]
     public class Member
     {
         public double Factor { get; set; }
@@ -17,13 +19,16 @@ namespace News360.Equation.Data
         /// Constant initialization
         /// </summary>
         /// <param name="factor"></param>
-        public Member(double factor) { Factor = factor; }
+        public Member(double factor) : this() { Factor = factor; }
 
         /// <summary>Инициализирует новый экземпляр класса <see cref="T:System.Object" />.</summary>
-        public Member(double factor, Variable var)
+        public Member(double factor, Variable var = null) : this()
         {
             Factor = factor;
-            Vars.Add(var.Name, var);
+            if (var != null)
+            {
+                Vars.Add(var.Name, var);
+            }
         }
 
         /// <summary>
@@ -31,18 +36,19 @@ namespace News360.Equation.Data
         /// </summary>
         /// <param name="name"></param>
         /// <param name="power"></param>
-        public Member AddVariable(string name, int power = 1)
+        public Variable AddVariable(string name, int power = 1)
         {
-            Variable existing;
-            if (!Vars.TryGetValue(name, out existing))
+            Variable value;
+            if (!Vars.TryGetValue(name, out value))
             {
-                Vars.Add(name, new Variable(name, power));
+                value = new Variable(name, power);
+                Vars.Add(name, value);
             }
             else
             {
-                existing.Power += power;
+                value.Power += power;
             }
-            return this;
+            return value;
         }
     }
 }

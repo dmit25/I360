@@ -1,8 +1,11 @@
-﻿namespace News360.Equation.Data
+﻿using System.Diagnostics;
+
+namespace News360.Equation.Data
 {
     /// <summary>
     /// Represents single variable entrance
     /// </summary>
+    [DebuggerDisplay("{Name}^{Power}")]
     public class Variable
     {
         public string Name { get; set; }
