@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using News360.Equation.Data;
 
@@ -15,6 +16,7 @@ namespace News360.Equation.Parsing
                 throw new ParsingException(input, 0, ParseState.Factor, "input is null or empty");
             }
             var ctx = new Context();
+            var equalitySignWasFound = false;
             try
             {
                 var res = new Data.Equation();
@@ -27,6 +29,11 @@ namespace News360.Equation.Parsing
                         case ' ':
                             continue;
                         case '=':
+                            if (equalitySignWasFound)
+                            {
+                                throw new ApplicationException("Incorrect expression");
+                            }
+                            equalitySignWasFound = true;
                             if (ctx.Stack.Count > 1)
                             {
                                 throw new ApplicationException("Unclosed brackets");
@@ -162,9 +169,13 @@ namespace News360.Equation.Parsing
                     }
                 }
                 AppendDanglingMember(ctx);
+                if (!equalitySignWasFound)
+                {
+                    throw new ApplicationException("Incorrect expression");
+                }
                 return res;
             }
-            catch (ApplicationException exc)
+            catch (Exception exc)
             {
                 throw new ParsingException(input, ctx.Pos, ctx.State, exc.Message, exc);
             }

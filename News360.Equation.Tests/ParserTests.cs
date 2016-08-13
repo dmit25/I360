@@ -129,6 +129,8 @@ namespace News360.Equation.Tests
                 //incorrect naming (by design)
                 "x0^5 = yy^-1",
                 "x^5 = yy^--1",
+                "x^5 ",
+                "x^5 = yy^--1 = x",
                 //[= -] <=> [= -0]
                 //"x^5 = -", 
                 "x^y = -"
