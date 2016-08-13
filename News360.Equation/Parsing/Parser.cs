@@ -14,7 +14,7 @@ namespace News360.Equation.Parsing
             var state = ParseState.Factor;
             if (string.IsNullOrEmpty(input))
             {
-                throw new ParsingException(pos, state, "input is null or empty");
+                throw new ParsingException(input, pos, state, "input is null or empty");
             }
             try
             {
@@ -34,10 +34,12 @@ namespace News360.Equation.Parsing
                         case '=':
                             if (context.Count > 1)
                             {
-                                throw new Exception("Unclosed brackets");
+                                throw new ApplicationException("Unclosed brackets");
                             }
+                            current = AddDanglingMember(current, buffer, context, out currentVar);
                             context.Pop();
                             context.Push(res.RightPart);
+                            state = ParseState.Factor;
                             break;
                         case '(':
                             switch (state)
@@ -60,18 +62,19 @@ namespace News360.Equation.Parsing
                         case ')':
                             switch (state)
                             {
+                                case ParseState.Power:
                                 case ParseState.Factor:
+                                    current = AddDanglingMember(current, buffer, context, out currentVar);
+                                    context.Pop();
                                     break;
                                 case ParseState.Variable:
                                     if (context.Count < 2)
                                     {
-                                        throw new Exception("Redundant close bracket");
+                                        throw new ApplicationException("Redundant close bracket");
                                     }
                                     current = NewMember(context, current, out currentVar);
                                     context.Pop();
                                     state = ParseState.Factor;
-                                    break;
-                                case ParseState.Power:
                                     break;
                                 default:
                                     return Unexpected(c);
@@ -159,23 +162,47 @@ namespace News360.Equation.Parsing
                             break;
                     }
                 }
+                SetFactorFromBuffer(current, buffer, true);
+                if (!IsEmpty(current))
+                {
+                    context.Peek().Add(current);
+                }
                 return res;
             }
-            catch (Exception exc)
+            catch (ApplicationException exc)
             {
-                throw new ParsingException(pos, state, exc.Message, exc);
+                throw new ParsingException(input, pos, state, exc.Message, exc);
             }
+        }
+
+        private Member AddDanglingMember(Member current, StringBuilder buffer, Stack<IList<Member>> context, out Variable currentVar)
+        {
+            SetFactorFromBuffer(current, buffer, true);
+            if (!IsEmpty(current))
+            {
+                current = NewMember(context, current, out currentVar);
+            }
+            else
+            {
+                currentVar = null;
+            }
+            return current;
+        }
+
+        private bool IsEmpty(Member current)
+        {
+            return Math.Abs(current.Factor) < double.Epsilon && current.Vars.Count == 0;
         }
 
         private void SetPowerFromBuffer(Variable current, StringBuilder buffer)
         {
             if (buffer.Length == 0)
             {
-                throw new Exception("Empty power value");
+                throw new ApplicationException("Empty power value");
             }
             if (current == null)
             {
-                throw new Exception("Undefined behaviour");
+                throw new ApplicationException("Undefined behaviour");
             }
             current.Power = int.Parse(buffer.ToString());
             buffer.Clear();
@@ -192,15 +219,16 @@ namespace News360.Equation.Parsing
             return current;
         }
 
-        private static void SetFactorFromBuffer(Member current, StringBuilder buffer)
+        private static void SetFactorFromBuffer(Member current, StringBuilder buffer, bool ignoreEmptyBuffer = false)
         {
             if (buffer.Length > 0)
             {
-                current.Factor = buffer.Length == 1 && (buffer[0] == '-' || buffer[0] == '+') ? (buffer[0] == '-' ? -1 : +1) : double.Parse(buffer.ToString(), CultureInfo.InvariantCulture);
+                current.Factor = buffer.Length == 1 && (buffer[0] == '-' || buffer[0] == '+')
+                    ? (buffer[0] == '-' ? -1 : +1)
+                    : double.Parse(buffer.ToString(), CultureInfo.InvariantCulture);
                 buffer.Clear();
-                SetFactorFromBuffer(current, buffer);
             }
-            else if (Math.Abs(current.Factor) < double.Epsilon)
+            else if (!ignoreEmptyBuffer && current != null && Math.Abs(current.Factor) < double.Epsilon)
             {
                 current.Factor = 1;
             }
@@ -214,7 +242,7 @@ namespace News360.Equation.Parsing
             return current;
         }
 
-        private static Data.Equation Unexpected(char c) { throw new Exception($"Unexpected symbol '{c}'"); }
+        private static Data.Equation Unexpected(char c) { throw new ApplicationException($"Unexpected symbol '{c}'"); }
     }
 
     public enum ParseState

@@ -5,8 +5,8 @@ namespace News360.Equation.Parsing
 {
     public class ParsingException : Exception
     {
-        public ParsingException(int position, ParseState state, string message, Exception inner = null)
-            : base($"{position}-{state}: {message}", inner)
+        public ParsingException(string input, int position, ParseState state, string message, Exception inner = null)
+            : base($"{position}({input[position]})-{state}: {message}", inner)
         {
             Position = position;
             State = state;

@@ -2,9 +2,10 @@
 {
     public class Canonizer
     {
-        public void Canonize(ref Data.Equation equation)
+        public Data.Equation Canonize(Data.Equation equation)
         {
-
+            var res = new Data.Equation();
+            return res;
         }
     }
 }
